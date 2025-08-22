@@ -12,5 +12,6 @@
 <ul>
 <li>git clone https://github.com/kiyamehram/SSH-craker.git</li>
 <li>cd ssh-cracker</li>
+<li>python generate_wordlist.py --size 50000 --output Password-list.txt</li>
 <li>python ssh-cracker.py -h</li>
 </ul>
