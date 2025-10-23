@@ -466,7 +466,6 @@ class SSHBruteForce:
                 self._rotate_proxy()
                 return False
         finally:
-            # کاهش تعداد اتصالات فعال
             self.active_connections -= 1
             if temp_key_file and temp_key_file.exists():
                 try:
@@ -939,3 +938,4 @@ if __name__ == "__main__":
     print_banner()
 
     asyncio.run(main())
+
