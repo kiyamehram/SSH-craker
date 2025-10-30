@@ -1,6 +1,6 @@
 <p align="center">
 
-  <img src="[https://art.ngfiles.com/images/5725000/5725572_818708_iwillendyou_untitled-5725572.187c61eba46a1680acc0356b4632351c.webp?f1716583458](https://i1.sndcdn.com/artworks-GhVGvyQ6MzlmyYUM-ySzYZg-t500x500.jpg)" alt="Tk" align="center" width="800"></p>
+  <img src="https://media.istockphoto.com/id/493559700/photo/pray.jpg?s=612x612&w=0&k=20&c=4gtmv5fDs8jIr6uosQAUG21F0xRDbSux0GGQtxrHGcI=" alt="Tk" align="center" width="800"></p>
 
 <h1 align="center"> SSH-craker</h1>
 <p align="center">
